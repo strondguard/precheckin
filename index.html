@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário de Hospedagem</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery.mask/1.14.16/jquery.mask.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            max-width: 100%;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        h1 {
+            text-align: center;
+            font-size: 24px;
+        }
+        label {
+            display: block;
+            margin: 10px 0 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .acompanhante {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: none;
+            border-radius: 4px;
+            background-color: #28a745;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #218838;
+        }
+        .error {
+            color: red;
+            font-size: 12px;
+            display: none;
+        }
+        @media (max-width: 600px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Formulário de Hospedagem</h1>
+        <form id="hospedagemForm">
+            <label for="numPessoas">Quantas pessoas ficarão no quarto? (Máx. 6)</label>
+            <select id="numPessoas" required>
+                <option value="">Selecione</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+            </select>
+
+            <h2>Dados do Titular</h2>
+            <label for="nomeTitular">Nome Completo</label>
+            <input type="text" id="nomeTitular" required>
+            <label for="dataNascTitular">Data de Nascimento</label>
+            <input type="text" id="dataNascTitular" placeholder="DD/MM/AAAA" required>
+            <span class="error" id="dataNascTitularError">Data de nascimento inválida</span>
+            <label for="cpfTitular">CPF</label>
+            <input type="text" id="cpfTitular" required>
+            <span class="error" id="cpfTitularError">CPF inválido</span>
+            <label for="rgTitular">RG (Opcional)</label>
+            <input type="text" id="rgTitular">
+            <label for="celularTitular">Celular</label>
+            <input type="text" id="celularTitular" required>
+            <span class="error" id="celularTitularError">Celular inválido</span>
+            <label for="emailTitular">Email</label>
+            <input type="email" id="emailTitular" required>
+            <span class="error" id="emailTitularError">Email inválido</span>
+            <label for="placaCarro">Placa do Carro (Opcional)</label>
+            <input type="text" id="placaCarro">
+
+            <h2>Endereço</h2>
+            <label for="cep">CEP</label>
+            <input type="text" id="cep" required>
+            <label for="numero">Número</label>
+            <input type="text" id="numero" required>
+            <label for="rua">Rua</label>
+            <input type="text" id="rua" required>
+            <label for="bairro">Bairro</label>
+            <input type="text" id="bairro" required>
+            <label for="cidade">Cidade</label>
+            <input type="text" id="cidade" required>
+
+            <h2>Acompanhantes</h2>
+            <div id="acompanhantes"></div>
+
+            <button type="button" id="gerarPDF">Gerar PDF</button>
+            <button type="button" id="enviarWhatsApp">Enviar via WhatsApp</button>
+        </form>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        $(document).ready(function() {
+            // Máscaras
+            $('#dataNascTitular').mask('00/00/0000');
+            $('#cpfTitular').mask('000.000.000-00');
+            $('#celularTitular').mask('(00) 00000-0000');
+            $('#cep').mask('00000-000');
+            $('#placaCarro').mask('AAA-0A00');
+
+            // Busca de CEP
+            $('#cep').on('blur', function() {
+                const cep = $(this).val().replace(/\D/g, '');
+                if (cep.length === 8) {
+                    $.getJSON(`https://viacep.com.br/ws/${cep}/json/`, function(data) {
+                        if (!data.erro) {
+                            $('#rua').val(data.logradouro);
+                            $('#bairro').val(data.bairro);
+                            $('#cidade').val(data.localidade);
+                        }
+                    });
+                }
+            });
+
+            // Atualizar acompanhantes
+            $('#numPessoas').change(function() {
+                const num = parseInt($(this).val()) - 1;
+                $('#acompanhantes').empty();
+                for (let i = 0; i < num; i++) {
+                    $('#acompanhantes').append(`
+                        <div class="acompanhante">
+                            <h3>Acompanhante ${i + 1}</h3>
+                            <label for="nomeAcomp_${i}">Nome Completo</label>
+                            <input type="text" id="nomeAcomp_${i}" required>
+                            <label for="dataNascAcomp_${i}">Data de Nascimento</label>
+                            <input type="text" id="dataNascAcomp_${i}" placeholder="DD/MM/AAAA" required>
+                            <span class="error" id="dataNascAcomp_${i}Error">Data de nascimento inválida</span>
+                            <label for="cpfAcomp_${i}">CPF</label>
+                            <input type="text" id="cpfAcomp_${i}">
+                            <span class="error" id="cpfAcomp_${i}Error">CPF inválido</span>
+                        </div>
+                    `);
+                    $(`#dataNascAcomp_${i}`).mask('00/00/0000');
+                    $(`#cpfAcomp_${i}`).mask('000.000.000-00');
+
+                    // Tornar CPF obrigatório com base na data de nascimento
+                    $(`#dataNascAcomp_${i}`).on('blur', function() {
+                        const dataNasc = $(this).val();
+                        const idade = calcularIdade(dataNasc);
+                        if (idade >= 9) {
+                            $(`#cpfAcomp_${i}`).prop('required', true);
+                        } else {
+                            $(`#cpfAcomp_${i}`).prop('required', false);
+                        }
+                    });
+                }
+            });
+
+            // Validações
+            function validarCPF(cpf) {
+                cpf = cpf.replace(/\D/g, '');
+                if (cpf.length !== 11) return false;
+                let soma = 0, resto;
+                for (let i = 1; i <= 9; i++) soma += parseInt(cpf[i-1]) * (11 - i);
+                resto = (soma * 10) % 11;
+                if (resto === 10 || resto === 11) resto = 0;
+                if (resto !== parseInt(cpf[9])) return false;
+                soma = 0;
+                for (let i = 1; i <= 10; i++) soma += parseInt(cpf[i-1]) * (12 - i);
+                resto = (soma * 10) % 11;
+                if (resto === 10 || resto === 11) resto = 0;
+                if (resto !== parseInt(cpf[10])) return false;
+                return true;
+            }
+
+            function validarEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+
+            function validarCelular(celular) {
+                const re = /^\(\d{2}\)\s\d{5}-\d{4}$/;
+                return re.test(celular);
+            }
+
+            function validarDataNasc(dataNasc) {
+                if (!dataNasc || !/^\d{2}\/\d{2}\/\d{4}$/.test(dataNasc)) return false;
+                const [dia, mes, ano] = dataNasc.split('/').map(Number);
+                const hoje = new Date();
+                const nascimento = new Date(ano, mes - 1, dia);
+                if (nascimento > hoje || ano < 1900) return false;
+                return true;
+            }
+
+            function calcularIdade(dataNasc) {
+                if (!dataNasc || !/^\d{2}\/\d{2}\/\d{4}$/.test(dataNasc)) return 0;
+                const [dia, mes, ano] = dataNasc.split('/').map(Number);
+                const hoje = new Date();
+                const nascimento = new Date(ano, mes - 1, dia);
+                let idade = hoje.getFullYear() - nascimento.getFullYear();
+                const m = hoje.getMonth() - nascimento.getMonth();
+                if (m < 0 || (m === 0 && hoje.getDate() < dia)) idade--;
+                return idade;
+            }
+
+            // Função para desenhar tabela no PDF
+            function drawTable(doc, headers, data, x, y, colWidths, rowHeight = 8) {
+                const padding = 2;
+
+                // Desenhar cabeçalho
+                doc.setFillColor(200, 200, 200);
+                doc.setFont("helvetica", "bold");
+                headers.forEach((header, i) => {
+                    doc.rect(x + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y, colWidths[i], rowHeight, 'F');
+                    doc.text(header, x + colWidths.slice(0, i).reduce((a, b) => a + b, 0) + padding, y + rowHeight - padding);
+                });
+                y += rowHeight;
+
+                // Desenhar linhas
+                doc.setFont("helvetica", "normal");
+                data.forEach(row => {
+                    row.forEach((cell, i) => {
+                        doc.rect(x + colWidths.slice(0, i).reduce((a, b) => a + b, 0), y, colWidths[i], rowHeight);
+                        const textLines = doc.splitTextToSize(cell.toString(), colWidths[i] - 2 * padding);
+                        doc.text(textLines[0], x + colWidths.slice(0, i).reduce((a, b) => a + b, 0) + padding, y + rowHeight - padding);
+                    });
+                    y += rowHeight;
+                });
+
+                return y;
+            }
+
+            // Função para gerar PDF
+            function gerarPDF() {
+                // Validações
+                let valid = true;
+
+                // Data de Nascimento Titular
+                const dataNascTitular = $('#dataNascTitular').val();
+                if (!validarDataNasc(dataNascTitular)) {
+                    $('#dataNascTitularError').show();
+                    valid = false;
+                } else {
+                    $('#dataNascTitularError').hide();
+                }
+
+                // CPF Titular
+                const cpfTitular = $('#cpfTitular').val();
+                if (!validarCPF(cpfTitular)) {
+                    $('#cpfTitularError').show();
+                    valid = false;
+                } else {
+                    $('#cpfTitularError').hide();
+                }
+
+                // Celular
+                const celular = $('#celularTitular').val();
+                if (!validarCelular(celular)) {
+                    $('#celularTitularError').show();
+                    valid = false;
+                    } else {
+                        $('#celularTitularError').hide();
+                    }
+
+                    // Email
+                    const email = $('#emailTitular').val();
+                    if (!validarEmail(email)) {
+                        $('#emailTitularError').show();
+                        valid = false;
+                    } else {
+                        $('#emailTitularError').hide();
+                    }
+
+                    // Acompanhantes
+                    const numPessoas = parseInt($('#numPessoas').val()) - 1;
+                    for (let i = 0; i < numPessoas; i++) {
+                        const dataNasc = $(`#dataNascAcomp_${i}`).val();
+                        if (!validarDataNasc(dataNasc)) {
+                            $(`#dataNascAcomp_${i}Error`).show();
+                            valid = false;
+                        } else {
+                            $(`#dataNascAcomp_${i}Error`).hide();
+                        }
+
+                        const idade = calcularIdade(dataNasc);
+                        const cpf = $(`#cpfAcomp_${i}`).val();
+                        if (idade >= 9 && (!cpf || !validarCPF(cpf))) {
+                            $(`#cpfAcomp_${i}Error`).show();
+                            valid = false;
+                        } else if (cpf && !validarCPF(cpf)) {
+                            $(`#cpfAcomp_${i}Error`).show();
+                            valid = false;
+                        } else {
+                            $(`#cpfAcomp_${i}Error`).hide();
+                        }
+                    }
+
+                    if (!valid) {
+                        alert('Por favor, corrija os erros no formulário.');
+                        return null;
+                    }
+
+                    // Gerar PDF no formato FNRH com tabelas otimizadas
+                    const doc = new jsPDF();
+                    doc.setFontSize(10);
+                    doc.setFont("helvetica", "bold");
+
+                    // Cabeçalho
+                    doc.setFillColor(0, 51, 102);
+                    doc.rect(0, 0, 210, 30, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.text("GOVERNO DO ESTADO DO CEARÁ", 10, 10);
+                    doc.text("SECRETARIA DE SEGURANÇA PÚBLICA", 10, 17);
+                    doc.text("FNRH - FICHA NACIONAL DE REGISTRO DE HÓSPEDES", 10, 24);
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFontSize(9);
+                    doc.text("ROTA DAS EMOÇÕES", 10, 35);
+
+                    // Dados do Titular (Tabela)
+                    let y = 45;
+                    doc.setFontSize(9);
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Dados do Titular", 10, y);
+                    y += 5;
+
+                    const titularHeaders = ["Campo", "Informação"];
+                    const titularData = [
+                        ["Nome", $('#nomeTitular').val()],
+                        ["Nascimento", $('#dataNascTitular').val()],
+                        ["CPF", cpfTitular],
+                        ["RG", $('#rgTitular').val() || 'Não informado'],
+                        ["Celular", celular],
+                        ["Email", email],
+                        ["Placa Carro", $('#placaCarro').val() || 'Não informado']
+                    ];
+                    y = drawTable(doc, titularHeaders, titularData, 10, y, [40, 140], 7);
+
+                    // Endereço (Tabela)
+                    y += 5;
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Endereço", 10, y);
+                    y += 5;
+
+                    const enderecoHeaders = ["Campo", "Informação"];
+                    const enderecoData = [
+                        ["CEP", $('#cep').val()],
+                        ["Rua", $('#rua').val() + ", " + $('#numero').val()],
+                        ["Bairro", $('#bairro').val()],
+                        ["Cidade", $('#cidade').val()]
+                    ];
+                    y = drawTable(doc, enderecoHeaders, enderecoData, 10, y, [40, 140], 7);
+
+                    // Acompanhantes (Tabela)
+                    if (numPessoas > 0) {
+                        y += 5;
+                        doc.setFont("helvetica", "bold");
+                        doc.text("Acompanhantes", 10, y);
+                        y += 5;
+
+                        const acompanhanteHeaders = ["Nome", "Nascimento", "CPF"];
+                        const acompanhanteData = [];
+                        for (let i = 0; i < numPessoas; i++) {
+                            acompanhanteData.push([
+                                $(`#nomeAcomp_${i}`).val(),
+                                $(`#dataNascAcomp_${i}`).val(),
+                                $(`#cpfAcomp_${i}`).val() || 'Não informado'
+                            ]);
+                        }
+                        y = drawTable(doc, acompanhanteHeaders, acompanhanteData, 10, y, [80, 30, 70], 7);
+                    }
+
+                    // Aviso
+                    y += 5;
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(255, 0, 0);
+                    doc.setFontSize(8);
+                    const aviso = "É EXPRESSAMENTE PROIBIDO A ENTRADA DE ALIMENTOS E BEBIDAS NO EMPREENDIMENTO";
+                    const avisoLines = doc.splitTextToSize(aviso, 180);
+                    doc.text(avisoLines, 10, y);
+                    y += avisoLines.length * 8;
+                    doc.setTextColor(0, 0, 0);
+
+                    // Assinaturas
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(9);
+                    doc.text("ASSINATURAS", 10, y);
+                    doc.line(10, y + 70, 190, y + 70);
+                    doc.text("Hóspede Titular", 10, y + 10);
+
+                    return doc;
+                }
+
+                // Botão Gerar PDF
+                $('#gerarPDF').click(function() {
+                    const doc = gerarPDF();
+                    if (doc) {
+                        doc.save('FNRH_hospedagem.pdf');
+                    }
+                });
+
+                // Enviar via WhatsApp
+                $('#enviarWhatsApp').click(function() {
+                    const doc = gerarPDF();
+                    if (!doc) return;
+
+                    const pdfBase64 = doc.output('datauristring').split(',')[1];
+                    const mensagem = encodeURIComponent('Segue o formulário de hospedagem em PDF.');
+                    const numeroWhatsApp = 'INSIRA_O_NUMERO_AQUI'; // Adicione o número com código do país, ex: +5511999999999
+                    const url = `https://api.whatsapp.com/send?phone=${numeroWhatsApp}&text=${mensagem}`;
+                    
+                    // Criar link temporário para download do PDF
+                    const link = document.createElement('a');
+                    link.href = 'data:application/pdf;base64,' + pdfBase64;
+                    link.download = 'FNRH_hospedagem.pdf';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    // Abrir WhatsApp
+                    window.open(url, '_blank');
+                });
+            });
+        </script>
+    </body>
+</html>
