@@ -418,6 +418,7 @@
                     doc.setFontSize(9);
                     doc.text("ASSINATURAS", 10, y);
                     doc.line(10, y + 70, 190, y + 70);
+                    doc.text("Hóspede Titular", 10, y + 10);
 
                     return doc;
                 }
@@ -437,7 +438,7 @@
 
                     const pdfBase64 = doc.output('datauristring').split(',')[1];
                     const mensagem = encodeURIComponent('Segue o formulário de hospedagem em PDF.');
-                    const numeroWhatsApp = '+5588993794105'; // Adicione o número com código do país, ex: +5511999999999
+                    const numeroWhatsApp = 'INSIRA_O_NUMERO_AQUI'; // Adicione o número com código do país, ex: +5511999999999
                     const url = `https://api.whatsapp.com/send?phone=${numeroWhatsApp}&text=${mensagem}`;
                     
                     // Criar link temporário para download do PDF
