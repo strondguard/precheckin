@@ -89,10 +89,12 @@
                 <option value="5">5</option>
                 <option value="6">6</option>
             </select>
+            <span class="error" id="numPessoasError">Selecione a quantidade de pessoas</span>
 
             <h2>Dados do Titular</h2>
             <label for="nomeTitular">Nome Completo</label>
             <input type="text" id="nomeTitular" required>
+            <span class="error" id="nomeTitularError">Nome completo é obrigatório</span>
             <label for="dataNascTitular">Data de Nascimento</label>
             <input type="text" id="dataNascTitular" placeholder="DD/MM/AAAA" required>
             <span class="error" id="dataNascTitularError">Data de nascimento inválida</span>
@@ -113,14 +115,18 @@
             <h2>Endereço</h2>
             <label for="cep">CEP</label>
             <input type="text" id="cep" required>
+            <span class="error" id="cepError">CEP inválido ou não preenchido</span>
             <label for="numero">Número</label>
-            <input type="text" id="numero" required>
+            <input type="text" id="numero">
             <label for="rua">Rua</label>
             <input type="text" id="rua" required>
+            <span class="error" id="ruaError">Rua é obrigatória</span>
             <label for="bairro">Bairro</label>
             <input type="text" id="bairro" required>
+            <span class="error" id="bairroError">Bairro é obrigatório</span>
             <label for="cidade">Cidade</label>
             <input type="text" id="cidade" required>
+            <span class="error" id="cidadeError">Cidade é obrigatória</span>
 
             <h2>Acompanhantes</h2>
             <div id="acompanhantes"></div>
@@ -165,6 +171,7 @@
                             <h3>Acompanhante ${i + 1}</h3>
                             <label for="nomeAcomp_${i}">Nome Completo</label>
                             <input type="text" id="nomeAcomp_${i}" required>
+                            <span class="error" id="nomeAcomp_${i}Error">Nome completo é obrigatório</span>
                             <label for="dataNascAcomp_${i}">Data de Nascimento</label>
                             <input type="text" id="dataNascAcomp_${i}" placeholder="DD/MM/AAAA" required>
                             <span class="error" id="dataNascAcomp_${i}Error">Data de nascimento inválida</span>
@@ -225,6 +232,11 @@
                 return true;
             }
 
+            function validarCep(cep) {
+                const re = /^\d{5}-\d{3}$/;
+                return re.test(cep);
+            }
+
             function calcularIdade(dataNasc) {
                 if (!dataNasc || !/^\d{2}\/\d{2}\/\d{4}$/.test(dataNasc)) return 0;
                 const [dia, mes, ano] = dataNasc.split('/').map(Number);
@@ -268,6 +280,24 @@
                 // Validações
                 let valid = true;
 
+                // Quantidade de Pessoas
+                const numPessoas = $('#numPessoas').val();
+                if (!numPessoas) {
+                    $('#numPessoasError').show();
+                    valid = false;
+                } else {
+                    $('#numPessoasError').hide();
+                }
+
+                // Nome Titular
+                const nomeTitular = $('#nomeTitular').val().trim();
+                if (!nomeTitular) {
+                    $('#nomeTitularError').show();
+                    valid = false;
+                } else {
+                    $('#nomeTitularError').hide();
+                }
+
                 // Data de Nascimento Titular
                 const dataNascTitular = $('#dataNascTitular').val();
                 if (!validarDataNasc(dataNascTitular)) {
@@ -291,168 +321,214 @@
                 if (!validarCelular(celular)) {
                     $('#celularTitularError').show();
                     valid = false;
-                    } else {
-                        $('#celularTitularError').hide();
-                    }
-
-                    // Email
-                    const email = $('#emailTitular').val();
-                    if (!validarEmail(email)) {
-                        $('#emailTitularError').show();
-                        valid = false;
-                    } else {
-                        $('#emailTitularError').hide();
-                    }
-
-                    // Acompanhantes
-                    const numPessoas = parseInt($('#numPessoas').val()) - 1;
-                    for (let i = 0; i < numPessoas; i++) {
-                        const dataNasc = $(`#dataNascAcomp_${i}`).val();
-                        if (!validarDataNasc(dataNasc)) {
-                            $(`#dataNascAcomp_${i}Error`).show();
-                            valid = false;
-                        } else {
-                            $(`#dataNascAcomp_${i}Error`).hide();
-                        }
-
-                        const idade = calcularIdade(dataNasc);
-                        const cpf = $(`#cpfAcomp_${i}`).val();
-                        if (idade >= 9 && (!cpf || !validarCPF(cpf))) {
-                            $(`#cpfAcomp_${i}Error`).show();
-                            valid = false;
-                        } else if (cpf && !validarCPF(cpf)) {
-                            $(`#cpfAcomp_${i}Error`).show();
-                            valid = false;
-                        } else {
-                            $(`#cpfAcomp_${i}Error`).hide();
-                        }
-                    }
-
-                    if (!valid) {
-                        alert('Por favor, corrija os erros no formulário.');
-                        return null;
-                    }
-
-                    // Gerar PDF no formato FNRH com tabelas otimizadas
-                    const doc = new jsPDF();
-                    doc.setFontSize(10);
-                    doc.setFont("helvetica", "bold");
-
-                    // Cabeçalho
-                    doc.setFillColor(0, 51, 102);
-                    doc.rect(0, 0, 210, 30, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.text("GOVERNO DO ESTADO DO CEARÁ", 10, 10);
-                    doc.text("SECRETARIA DE SEGURANÇA PÚBLICA", 10, 17);
-                    doc.text("FNRH - FICHA NACIONAL DE REGISTRO DE HÓSPEDES", 10, 24);
-                    doc.setTextColor(0, 0, 0);
-                    doc.setFontSize(9);
-                    doc.text("ROTA DAS EMOÇÕES", 10, 35);
-
-                    // Dados do Titular (Tabela)
-                    let y = 45;
-                    doc.setFontSize(9);
-                    doc.setFont("helvetica", "bold");
-                    doc.text("Dados do Titular", 10, y);
-                    y += 5;
-
-                    const titularHeaders = ["Campo", "Informação"];
-                    const titularData = [
-                        ["Nome", $('#nomeTitular').val()],
-                        ["Nascimento", $('#dataNascTitular').val()],
-                        ["CPF", cpfTitular],
-                        ["RG", $('#rgTitular').val() || 'Não informado'],
-                        ["Celular", celular],
-                        ["Email", email],
-                        ["Placa Carro", $('#placaCarro').val() || 'Não informado']
-                    ];
-                    y = drawTable(doc, titularHeaders, titularData, 10, y, [40, 140], 7);
-
-                    // Endereço (Tabela)
-                    y += 5;
-                    doc.setFont("helvetica", "bold");
-                    doc.text("Endereço", 10, y);
-                    y += 5;
-
-                    const enderecoHeaders = ["Campo", "Informação"];
-                    const enderecoData = [
-                        ["CEP", $('#cep').val()],
-                        ["Rua", $('#rua').val() + ", " + $('#numero').val()],
-                        ["Bairro", $('#bairro').val()],
-                        ["Cidade", $('#cidade').val()]
-                    ];
-                    y = drawTable(doc, enderecoHeaders, enderecoData, 10, y, [40, 140], 7);
-
-                    // Acompanhantes (Tabela)
-                    if (numPessoas > 0) {
-                        y += 5;
-                        doc.setFont("helvetica", "bold");
-                        doc.text("Acompanhantes", 10, y);
-                        y += 5;
-
-                        const acompanhanteHeaders = ["Nome", "Nascimento", "CPF"];
-                        const acompanhanteData = [];
-                        for (let i = 0; i < numPessoas; i++) {
-                            acompanhanteData.push([
-                                $(`#nomeAcomp_${i}`).val(),
-                                $(`#dataNascAcomp_${i}`).val(),
-                                $(`#cpfAcomp_${i}`).val() || 'Não informado'
-                            ]);
-                        }
-                        y = drawTable(doc, acompanhanteHeaders, acompanhanteData, 10, y, [80, 30, 70], 7);
-                    }
-
-                    // Aviso
-                    y += 5;
-                    doc.setFont("helvetica", "bold");
-                    doc.setTextColor(255, 0, 0);
-                    doc.setFontSize(8);
-                    const aviso = "É EXPRESSAMENTE PROIBIDO A ENTRADA DE ALIMENTOS E BEBIDAS NO EMPREENDIMENTO";
-                    const avisoLines = doc.splitTextToSize(aviso, 180);
-                    doc.text(avisoLines, 10, y);
-                    y += avisoLines.length * 8;
-                    doc.setTextColor(0, 0, 0);
-
-                    // Assinaturas
-                    doc.setFont("helvetica", "normal");
-                    doc.setFontSize(9);
-                    doc.text("ASSINATURAS", 10, y);
-                    doc.line(10, y + 70, 190, y + 70);
-                    doc.text("Hóspede Titular", 10, y + 10);
-
-                    return doc;
+                } else {
+                    $('#celularTitularError').hide();
                 }
 
-                // Botão Gerar PDF
-                $('#gerarPDF').click(function() {
-                    const doc = gerarPDF();
-                    if (doc) {
-                        doc.save('FNRH_hospedagem.pdf');
+                // Email
+                const email = $('#emailTitular').val();
+                if (!validarEmail(email)) {
+                    $('#emailTitularError').show();
+                    valid = false;
+                } else {
+                    $('#emailTitularError').hide();
+                }
+
+                // Endereço
+                const cep = $('#cep').val();
+                if (!cep || !validarCep(cep)) {
+                    $('#cepError').show();
+                    valid = false;
+                } else {
+                    $('#cepError').hide();
+                }
+
+                const rua = $('#rua').val().trim();
+                if (!rua) {
+                    $('#ruaError').show();
+                    valid = false;
+                } else {
+                    $('#ruaError').hide();
+                }
+
+                const bairro = $('#bairro').val().trim();
+                if (!bairro) {
+                    $('#bairroError').show();
+                    valid = false;
+                } else {
+                    $('#bairroError').hide();
+                }
+
+                const cidade = $('#cidade').val().trim();
+                if (!cidade) {
+                    $('#cidadeError').show();
+                    valid = false;
+                } else {
+                    $('#cidadeError').hide();
+                }
+
+                // Acompanhantes
+                const numAcompanhantes = parseInt(numPessoas) - 1;
+                for (let i = 0; i < numAcompanhantes; i++) {
+                    const nomeAcomp = $(`#nomeAcomp_${i}`).val().trim();
+                    if (!nomeAcomp) {
+                        $(`#nomeAcomp_${i}Error`).show();
+                        valid = false;
+                    } else {
+                        $(`#nomeAcomp_${i}Error`).hide();
                     }
-                });
 
-                // Enviar via WhatsApp
-                $('#enviarWhatsApp').click(function() {
-                    const doc = gerarPDF();
-                    if (!doc) return;
+                    const dataNasc = $(`#dataNascAcomp_${i}`).val();
+                    if (!validarDataNasc(dataNasc)) {
+                        $(`#dataNascAcomp_${i}Error`).show();
+                        valid = false;
+                    } else {
+                        $(`#dataNascAcomp_${i}Error`).hide();
+                    }
 
-                    const pdfBase64 = doc.output('datauristring').split(',')[1];
-                    const mensagem = encodeURIComponent('Segue o formulário de hospedagem em PDF.');
-                    const numeroWhatsApp = 'INSIRA_O_NUMERO_AQUI'; // Adicione o número com código do país, ex: +5511999999999
-                    const url = `https://api.whatsapp.com/send?phone=${numeroWhatsApp}&text=${mensagem}`;
-                    
-                    // Criar link temporário para download do PDF
-                    const link = document.createElement('a');
-                    link.href = 'data:application/pdf;base64,' + pdfBase64;
-                    link.download = 'FNRH_hospedagem.pdf';
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                    const idade = calcularIdade(dataNasc);
+                    const cpf = $(`#cpfAcomp_${i}`).val();
+                    if (idade >= 9 && (!cpf || !validarCPF(cpf))) {
+                        $(`#cpfAcomp_${i}Error`).show();
+                        valid = false;
+                    } else if (cpf && !validarCPF(cpf)) {
+                        $(`#cpfAcomp_${i}Error`).show();
+                        valid = false;
+                    } else {
+                        $(`#cpfAcomp_${i}Error`).hide();
+                    }
+                }
 
-                    // Abrir WhatsApp
-                    window.open(url, '_blank');
-                });
+                if (!valid) {
+                    alert('Por favor, corrija os erros no formulário.');
+                    return null;
+                }
+
+                // Gerar PDF no formato FNRH com tabelas otimizadas
+                const doc = new jsPDF();
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "bold");
+
+                // Cabeçalho
+                doc.setFillColor(0, 51, 102);
+                doc.rect(0, 0, 210, 30, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.text("GOVERNO DO ESTADO DO CEARÁ", 10, 10);
+                doc.text("SECRETARIA DE SEGURANÇA PÚBLICA", 10, 17);
+                doc.text("FNRH - FICHA NACIONAL DE REGISTRO DE HÓSPEDES", 10, 24);
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(9);
+                doc.text("ROTA DAS EMOÇÕES", 10, 35);
+
+                // Dados do Titular (Tabela)
+                let y = 45;
+                doc.setFontSize(9);
+                doc.setFont("helvetica", "bold");
+                doc.text("Dados do Titular", 10, y);
+                y += 5;
+
+                const titularHeaders = ["Campo", "Informação"];
+                const titularData = [
+                    ["Nome", $('#nomeTitular').val()],
+                    ["Nascimento", $('#dataNascTitular').val()],
+                    ["CPF", cpfTitular],
+                    ["RG", $('#rgTitular').val() || 'Não informado'],
+                    ["Celular", celular],
+                    ["Email", email],
+                    ["Placa Carro", $('#placaCarro').val() || 'Não informado']
+                ];
+                y = drawTable(doc, titularHeaders, titularData, 10, y, [40, 140], 7);
+
+                // Endereço (Tabela)
+                y += 5;
+                doc.setFont("helvetica", "bold");
+                doc.text("Endereço", 10, y);
+                y += 5;
+
+                const enderecoHeaders = ["Campo", "Informação"];
+                const enderecoData = [
+                    ["CEP", $('#cep').val()],
+                    ["Rua", $('#rua').val() + ", " + ($('#numero').val() || 'S/N')],
+                    ["Bairro", $('#bairro').val()],
+                    ["Cidade", $('#cidade').val()]
+                ];
+                y = drawTable(doc, enderecoHeaders, enderecoData, 10, y, [40, 140], 7);
+
+                // Acompanhantes (Tabela)
+                if (numAcompanhantes > 0) {
+                    y += 5;
+                    doc.setFont("helvetica", "bold");
+                    doc.text("Acompanhantes", 10, y);
+                    y += 5;
+
+                    const acompanhanteHeaders = ["Nome", "Nascimento", "CPF"];
+                    const acompanhanteData = [];
+                    for (let i = 0; i < numAcompanhantes; i++) {
+                        acompanhanteData.push([
+                            $(`#nomeAcomp_${i}`).val(),
+                            $(`#dataNascAcomp_${i}`).val(),
+                            $(`#cpfAcomp_${i}`).val() || 'Não informado'
+                        ]);
+                    }
+                    y = drawTable(doc, acompanhanteHeaders, acompanhanteData, 10, y, [80, 30, 70], 7);
+                }
+
+                // Aviso
+                y += 5;
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(255, 0, 0);
+                doc.setFontSize(8);
+                const aviso = "É EXPRESSAMENTE PROIBIDO A ENTRADA DE ALIMENTOS E BEBIDAS NO EMPREENDIMENTO";
+                const avisoLines = doc.splitTextToSize(aviso, 180);
+                doc.text(avisoLines, 10, y);
+                y += avisoLines.length * 8;
+                doc.setTextColor(0, 0, 0);
+
+                // Assinaturas
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(9);
+                doc.text("ASSINATURAS", 10, y);
+                doc.line(10, y + 70, 190, y + 70);
+                doc.text("Hóspede Titular", 10, y + 10);
+
+                return doc;
+            }
+
+            // Botão Gerar PDF
+            $('#gerarPDF').click(function() {
+                const doc = gerarPDF();
+                if (doc) {
+                    doc.save('FNRH_hospedagem.pdf');
+                }
             });
-        </script>
-    </body>
+
+            // Enviar via WhatsApp
+            $('#enviarWhatsApp').click(function() {
+                const doc = gerarPDF();
+                if (!doc) return;
+
+                const pdfBase64 = doc.output('datauristring').split(',')[1];
+                const mensagem = encodeURIComponent('Segue o formulário de hospedagem em PDF.');
+                // Replace with a valid phone number including country code, e.g., +5511999999999
+                const numeroWhatsApp = 'INSIRA_O_NUMERO_AQUI';
+                if (numeroWhatsApp === 'INSIRA_O_NUMERO_AQUI') {
+                    alert('Por favor, insira um número de WhatsApp válido no código.');
+                    return;
+                }
+                const url = `https://api.whatsapp.com/send?phone=${numeroWhatsApp}&text=${mensagem}`;
+                
+                // Criar link temporário para download do PDF
+                const link = document.createElement('a');
+                link.href = 'data:application/pdf;base64,' + pdfBase64;
+                link.download = 'FNRH_hospedagem.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Abrir WhatsApp
+                window.open(url, '_blank');
+            });
+        });
+    </script>
+</body>
 </html>
